@@ -4,12 +4,32 @@
 
 	Author: Raiv
 	Created: 2018-04-10
-	Version: 1.0.0
+	Version: 1.0.1
+	
+	Changelog:
+		1.0.1 (2018-04-10)
+			- Created a function to allow multiple loops of sorting
+			- Made sure to only create a list of gems from  the gem container
 	
 =end
 
 if script.vars.empty?
 	# Continue
+elsif script.vars[1].downcase == 'setup'
+	respond
+	respond 'Usage:'
+	respond
+	respond "   1. Make sure your STOW container is setup. Type: Type: stow set [container name] "
+	respond "   2. Make sure your LOOTSACK container is setup. Type: ;var set lootsack=[container name] " 
+	respond "   3. Make sure your JARSACK container is setup. Type: ;var set jarsack=[container name] " 
+	respond "   4. Make sure you have EMPTY JARS in your GEMSACK. You can buy more at the Alchemist Shop "
+	respond
+	respond "   #{$clean_lich_char}#{script.name} help                 show this message"
+	respond "   #{$clean_lich_char}#{script.name} setup                show this message"
+	respond
+	respond "   #{$clean_lich_char}#{script.name}                      start organizing gems into jars automatically"
+	respond
+	exit
 elsif script.vars[1].downcase == 'help'
 	respond
 	respond 'Usage:'
@@ -25,163 +45,315 @@ elsif script.vars[1].downcase == 'help'
 	exit
 end
 
-unless stowContainer = GameObj.inv.find{|bag| bag.id == XMLData.stow_container_id}
+unless $stowContainer = GameObj.inv.find{|bag| bag.id == XMLData.stow_container_id}
 	echo 'Exiting: Stow Container not found. Type: stow set [container name].'
 	exit
 end
 
-unless lootContainer = GameObj.inv.find { |bag| bag.name =~ /#{Vars.lootsack}/i }
+unless $lootContainer = GameObj.inv.find { |bag| bag.name =~ /#{Vars.lootsack}/i }
 	echo 'Exiting: LootSack not found. Type: ;var set lootsack=[container name]'
 	exit
 end
 
-unless jarContainer = GameObj.inv.find { |bag| bag.name =~ /#{Vars.jarsack}/i }
+unless $jarContainer = GameObj.inv.find { |bag| bag.name =~ /#{Vars.jarsack}/i }
 	echo 'Exiting: JarSack not found. Type: ;var set jarsack=[container name]'
 	#fput ";var set jarsack=pouch"
 	exit
 end
 
-fput "open #" + lootContainer.id.to_s
-fput "open #" + jarContainer.id.to_s
+$randomItemList = Array.new
+$gemList = Array.new
+$emptyJarList = Array.new
+$jarList = Array.new
+$jarExists = false
 
-fput "stow all"
-
-randomItemList = Array.new
-gemList = Array.new
-emptyJarList = Array.new
-jarList = Array.new
+$maxLoops = 5
+$numLoops = 0
 
 #echo GameObj.containers.to_s	
 
-GameObj.containers.each{|id,container|
+def check_containers()
 
-	#echo " ------------ "
-	#echo "ID: " + id.to_s
-	#echo "CONTAINER: " + container.to_s
-	
-	container.each{|item|
-		#echo "ID: " + item.id.to_s
-		#echo "NOUN: " + item.noun
-		#echo "NAME: " + item.name
-		#echo "BEFORE: " + item.before_name
-		#echo "AFTER: " + item.after_name.to_s
+	$randomItemList = Array.new
+	$gemList = Array.new
+	$emptyJarList = Array.new
+	$jarList = Array.new
+	$jarExists = false
+
+	GameObj.containers.each{|id,container|
+
+		#echo " ------------ "
+		#echo "ID: " + id.to_s
+		#echo "CONTAINER: " + container.to_s
 		
-		if item.noun == "jar" && item.after_name == nil then
+		if id == $lootContainer.id then
 		
-			#emptyJarList.push([item.id,item.type,item.noun,item.name])
-			thisJar = {}
-			thisJar[:id] = item.id
-			thisJar[:type] = item.type
-			thisJar[:noun] = item.noun
-			thisJar[:name] = item.name
-			thisJar[:after_name] = item.after_name
+			container.each{|item|
 			
-			emptyJarList.push(thisJar)
-			
-		elsif item.noun == "jar" && item.after_name != nil then
+				#echo "ID: " + item.id.to_s
+				#echo "NOUN: " + item.noun
+				#echo "NAME: " + item.name
+				#echo "BEFORE: " + item.before_name
+				#echo "AFTER: " + item.after_name.to_s
+				
+				if item.type == "gem" then
+				
+					#gemList.push({"id"=>item.id,"type"=>item.type,"noun"=>item.noun,"name"=>item.name})
+					
+					thisGem = {}
+					thisGem[:id] = item.id
+					thisGem[:type] = item.type
+					thisGem[:noun] = item.noun
+					thisGem[:name] = item.name
+					
+					$gemList.push(thisGem)
+				
+				else
+				
+					#randomItemList.push([item.id,item.type,item.noun,item.name])
+					
+					thisItem = {}
+					thisItem[:id] = item.id
+					thisItem[:type] = item.type
+					thisItem[:noun] = item.noun
+					thisItem[:name] = item.name
+					
+					$randomItemList.push(thisItem)
+					
+				end
 		
-			#jarList.push([item.id,item.type,item.noun,item.name,item.after_name])
-			
-			thisJar = {}
-			thisJar[:id] = item.id
-			thisJar[:type] = item.type
-			thisJar[:noun] = item.noun
-			thisJar[:name] = item.name
-			thisJar[:after_name] = item.after_name
-			
-			jarList.push(thisJar)
-			
-		elsif item.type == "gem" then
+			}
 		
-			#gemList.push({"id"=>item.id,"type"=>item.type,"noun"=>item.noun,"name"=>item.name})
-			
-			thisGem = {}
-			thisGem[:id] = item.id
-			thisGem[:type] = item.type
-			thisGem[:noun] = item.noun
-			thisGem[:name] = item.name
-			
-			gemList.push(thisGem)
+		end		
 		
-		else
 		
-			#randomItemList.push([item.id,item.type,item.noun,item.name])
-			
-			thisItem = {}
-			thisItem[:id] = item.id
-			thisItem[:type] = item.type
-			thisItem[:noun] = item.noun
-			thisItem[:name] = item.name
-			
-			randomItemList.push(thisItem)
-			
-		end
+		if id == $jarContainer.id then
+		
+			container.each{|item|
+				#echo "ID: " + item.id.to_s
+				#echo "NOUN: " + item.noun
+				#echo "NAME: " + item.name
+				#echo "BEFORE: " + item.before_name
+				#echo "AFTER: " + item.after_name.to_s
+				
+				if item.noun == "jar" && item.after_name == nil then
+				
+					#emptyJarList.push([item.id,item.type,item.noun,item.name])
+					thisJar = {}
+					thisJar[:id] = item.id
+					thisJar[:type] = item.type
+					thisJar[:noun] = item.noun
+					thisJar[:name] = item.name
+					thisJar[:after_name] = item.after_name
+					
+					$emptyJarList.push(thisJar)
+					
+				elsif item.noun == "jar" && item.after_name != nil then
+				
+					#jarList.push([item.id,item.type,item.noun,item.name,item.after_name])
+					
+					thisJar = {}
+					thisJar[:id] = item.id
+					thisJar[:type] = item.type
+					thisJar[:noun] = item.noun
+					thisJar[:name] = item.name
+					thisJar[:after_name] = item.after_name
+					
+					$jarList.push(thisJar)
+					
+				end
+		
+			}
+		
+		end				
+		
 		
 	}
-}
 
-jarExists = false
+end
 
-#echo emptyJarList.to_s
+check_containers
 
-gemList.each{|gem|
-	#echo "GEM: " + gem.to_s
-	jarList.each{|jar|
-	
-		tmpGemName = gem[:name].gsub! 'some ', ''
-		tmpJarAfterName = jar[:after_name].gsub! 'containing ', ''
+if $gemList.count < 1 then
+	echo "No gems found."
+	exit
+end
+
+fput "open #" + $lootContainer.id.to_s
+fput "open #" + $jarContainer.id.to_s
+
+fput "stow all"
+
+$jarExists = false
+
+#echo $emptyJarList.to_s
+
+def sort_gems()
+
+	#echo "NUM GEMS: " + $gemList.count.to_s
+
+	if $gemList.count < 1 then
+		echo "No gems found."
+		exit
+	else
+		#echo "GEMS: " + $gemList.to_s
+	end
+
+	$gemList.each{|gem|
+
+		#echo "GEM: " + gem.to_s
+		#echo "jarList count: " + $jarList.count.to_s
 		
-		#echo "TEST: " + gem[:name] + " vs " + jar[:after_name]
-		#echo "TEST2: " + tmpGemName + " vs " + tmpJarAfterName
+		if $jarList.count > 0 then
 		
-		if gem[:name] == jar[:after_name] then
-			jarExists = true
-			#echo "put " + gem[:name] + " in jar #" + jar[:id].to_s
-			fput "get #" + gem[:id].to_s + " from #" + lootContainer.id.to_s
-			fput "get #" + jar[:id].to_s
-			fput "put #" + gem[:id].to_s + " in #" + jar[:id].to_s
-			fput "put #" + jar[:id].to_s + " in #" + jarContainer.id.to_s
-			gemList.delete_if {|obj| obj[:id] == gem[:id]}
+			$jarList.each{|jar|
+
+				#echo "JAR: " + jar.to_s
+				#echo "GEM: " + gem.to_s
+			
+				#tmpGemName = gem[:name].gsub! 'some ', ''
+				#tmpJarAfterName = jar[:after_name].gsub! 'containing ', ''
+				
+				tmpGemName = gem[:name]
+				#tmpGemName["some "] = ""
+				
+				tmpJarAfterName = jar[:after_name]
+				#tmpJarAfterName["containing "] = ""
+				#tmpJarAfterName.chomp('s')
+				
+				#echo tmpGemName
+				#echo tmpJarAfterName
+				
+				if tmpGemName != nil && tmpJarAfterName != nil then
+				
+					#if tmpGemName == tmpJarAfterName then
+					if tmpJarAfterName.include? tmpGemName
+						
+						#echo "TEST: " + gem[:name] + " vs " + jar[:after_name]
+						#sleep 1
+						#echo "TEST2: " + tmpGemName + " vs " + tmpJarAfterName				
+					
+						$jarExists = true
+						
+						#echo "put " + gem[:name] + " in jar"
+						
+						#fput "get #" + gem[:id].to_s + " from #" + lootContainer.id.to_s
+						#fput "get #" + jar[:id].to_s
+						#fput "put #" + gem[:id].to_s + " in #" + jar[:id].to_s
+						#fput "put #" + jar[:id].to_s + " in #" + jarContainer.id.to_s
+						
+						multifput "get #" + gem[:id].to_s + " from #" + $lootContainer.id.to_s, 
+						"get #" + jar[:id].to_s, 
+						"put #" + gem[:id].to_s + " in #" + jar[:id].to_s, 
+						"put #" + jar[:id].to_s + " in #" + $jarContainer.id.to_s
+						
+						$gemList.delete_if {|obj| obj[:id] == gem[:id]}
+						
+						sleep 1
+						
+					end
+				
+				end
+			}
+			
+		else
+			$jarExists = false
+		end
+		
+		if $jarExists == false then
+		
+			#echo "Need an empty jar"
+			
+			if $emptyJarList.count < 1 then
+				echo 'Exiting: Need more empty jars. You can buy more at the Alchemist Shop.'
+				exit			
+			end
+			
+			emptyJar = $emptyJarList.first
+
+			#echo emptyJar.to_s
+			
+			if emptyJar == nil then
+				echo 'Exiting: Need more empty jars.  You can buy more at the Alchemist Shop.'
+				exit		
+			end
+			
+			#unless emptyJar = $emptyJarList.first
+			#	echo 'Exiting: Need more empty jars. You can buy more at the Alchemist Shop.'
+			#	exit
+			#end
+
+			#echo "put " + gem[:name] + " in jar #" + emptyJar[:id].to_s
+			 
+			#fput "get #" + gem[:id].to_s + " from #" + lootContainer.id.to_s
+			#fput "get #" + emptyJar[:id].to_s
+			#fput "put #" + gem[:id].to_s + " in #" + emptyJar[:id].to_s
+			#fput "put #" + emptyJar[:id].to_s + " in #" + jarContainer.id.to_s
+			
+			multifput "get #" + gem[:id].to_s + " from #" + $lootContainer.id.to_s, 
+			"get #" + emptyJar[:id].to_s, 
+			"put #" + gem[:id].to_s + " in #" + emptyJar[:id].to_s, 
+			"put #" + emptyJar[:id].to_s + " in #" + $jarContainer.id.to_s
+			
+			$gemList.delete_if {|obj| obj[:id] == gem[:id]}
+			$emptyJarList.delete_if {|obj| obj[:id] == emptyJar[:id]}		
+			$jarList.push(emptyJar)
+			
+			check_containers
+			sort_gems
 			
 			sleep 1
+			
+			break
 		end
+		
+		$jarExists = false
 	}
-	
-	if jarExists == false then
-	
-		#echo "Need an empty jar"
-		emptyJar = emptyJarList.first
+end
 
-		echo emptyJar.to_s
-		
-		if emptyJar == nil then
-		 	echo 'Exiting: Need more empty jars. You can buy more at the Alchemist Shop.'
-	 		exit		
-		end
-		
-		#unless emptyJar = emptyJarList.first
-		#	echo 'Exiting: Need more empty jars. You can buy more at the Alchemist Shop.'
-		#	exit
-		#end
-
-		#echo "put " + gem[:name] + " in jar #" + emptyJar[:id].to_s
-		fput "get #" + gem[:id].to_s + " from #" + lootContainer.id.to_s
-		fput "get #" + emptyJar[:id].to_s
-		fput "put #" + gem[:id].to_s + " in #" + emptyJar[:id].to_s
-		fput "put #" + emptyJar[:id].to_s + " in #" + jarContainer.id.to_s
-		
-		gemList.delete_if {|obj| obj[:id] == gem[:id]}
-		emptyJarList.delete_if {|obj| obj[:id] == emptyJar[:id]}		
-		
+def keep_sorting
+	if $numLoops <= $maxLoops then
+		#echo "keep sorting"
+		check_containers
+		sort_gems
 		sleep 1
+	else
+		#echo "Stop sorting: Max loops reached"
+	end
+end
+
+sort_gems
+
+$numLoops = 1
+
+if $gemList.count > 0 then
+
+	echo $gemList.count.to_s + " GEMS LEFT"
+	#echo "LIST OF GEMS LEFT: " + gemList.to_s
+
+	keep_sorting
+	
+	if $gemList.count > 0 then
+	
+		echo $gemList.count.to_s + " GEMS LEFT"
+		#echo "LIST OF GEMS LEFT: " + $gemList.to_s		
+	
+	else
+	
+		echo "All gems should be in jars this time (if you had enough)!"
+		
 	end
 	
-	jarExists = false
-}
+else
 
-#echo "GEMS LEFT: " + gemList.to_s
+	echo "All gems should be in jars (if you had enough)!"
 
-fput "close #" + lootContainer.id.to_s
-fput "close #" + jarContainer.id.to_s
+end
+
+
+sleep 1
+
+fput "close #" + $lootContainer.id.to_s
+fput "close #" + $jarContainer.id.to_s
 
 echo "Should be all set, but if not then try running it again."
